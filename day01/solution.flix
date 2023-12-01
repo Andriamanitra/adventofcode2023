@@ -86,7 +86,9 @@ def solvePart2(lines : List[String]): String =
     |> ToString.toString
 
 def main(): Unit \ IO =
-    match Files.readLines("input.txt") {
+    let args = Environment.getArgs();
+    let file = List.head(args) |> Option.getWithDefault("input.txt");
+    match Files.readLines(file) {
         case Ok(lines) => {
             println("Part 1:");
             lines |> solvePart1 |> println;
