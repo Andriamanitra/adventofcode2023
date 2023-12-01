@@ -1,3 +1,29 @@
+@Test
+def test_part1(): Bool =
+    Assert.eq(
+        "142",
+        solvePart1(
+            "1abc2" ::
+            "pqr3stu8vwx" ::
+            "a1b2c3d4e5f" ::
+            "treb7uchet" :: Nil
+        )
+    )
+
+def test_part2(): Bool =
+    Assert.eq(
+        "281",
+        solvePart2(
+            "two1nine" ::
+            "eightwothree" ::
+            "abcone2threexyz" ::
+            "xtwone3four" ::
+            "4nineeightseven2" ::
+            "zoneight234" ::
+            "7pqrstsixteen" :: Nil
+        )
+    )
+
 def getNum(s : String): Option[Int32] =
     forM (
         tensIdx <- String.findIndexOfLeft(Char.isDigit, s);
