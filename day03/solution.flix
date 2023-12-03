@@ -18,6 +18,13 @@ def test_solvePart1(): Bool =
     )
 
 @Test
+def test_solvePart2(): Bool =
+    Assert.eq(
+        467835,
+        sample() |> solvePart2
+    )
+
+@Test
 def test_symbolPositions(): Bool =
     Assert.eq(
         Set#{
@@ -26,7 +33,7 @@ def test_symbolPositions(): Bool =
             Position.Position(2, 2),
             Position.Position(2, 5)
         },
-        List#{"012*45", "#12..5", "01$34#"} |> findSymbolPositions
+        List#{"012*45", "#12..5", "01$34#"} |> findPositions(isSymbol)
     )
 
 @Test
@@ -49,9 +56,10 @@ enum Position(Int32, Int32) with Eq, Order, ToString
 
 type alias PartNumber = { value = Int32, positions = List[Position] }
 
+def isSymbol(c: Char): Bool =
+    c != '.' and not Char.isAsciiDigit(c)
 
-
-def findSymbolPositions(lines: List[String]): Set[Position] = region rc {
+def findPositions(isValid: Char -> Bool, lines: List[String]): Set[Position] = region rc {
     use Position.Position;
     let positions = MutSet.new(rc);
     List.enumerator(rc, lines)
@@ -59,11 +67,10 @@ def findSymbolPositions(lines: List[String]): Set[Position] = region rc {
         String.enumerator(rc, line)
         |> Iterator.forEach(w -> {
             match w {
-                case (_, '.') => ()
-                case (_, char) if Char.isAsciiDigit(char) => ()
-                case (c, _) => {
+                case (c, char) if isValid(char) => {
                     MutSet.add!(Position(r, c), positions)
                 }
+                case _ => ()
             }
         })
     });
@@ -132,7 +139,7 @@ def neighbors(pos: Position): Set[Position] =
 
 def solvePart1(lines: List[String]): Int32 =
     let partNumbers = findPartNumbers(lines);
-    let symbolPositions = findSymbolPositions(lines);
+    let symbolPositions = findPositions(isSymbol, lines);
     partNumbers
     |> List.filterMap(match { value = value, positions = positions } -> {
         if (List.forAll(
@@ -145,13 +152,35 @@ def solvePart1(lines: List[String]): Int32 =
     })
     |> List.sum
 
+def solvePart2(lines: List[String]): Int32 =
+    let partNumbers = findPartNumbers(lines);
+    let gearPositions = findPositions(Eq.eq('*'), lines);
+    gearPositions
+    |> Set.filterMap(gearPos -> {
+        let neighboringNumbers =
+            partNumbers
+            |> List.filter(
+                match {value = _, positions = positions} -> {
+                    Set.intersection(neighbors(gearPos), List.toSet(positions))
+                    |> s -> Set.size(s) > 0
+                }
+            );
+        match neighboringNumbers {
+            case { value = v1 | _ } :: { value = v2 | _ } :: Nil => Some(v1 * v2)
+            case _ => None
+        }
+    })
+    |> Set.sum
 
 def main(): Unit \ IO =
     let args = Environment.getArgs();
     let file = List.head(args) |> Option.getWithDefault("input.txt");
     match Files.readLines(file) {
         case Ok(lines) => {
-            lines |> solvePart1 |> ToString.toString |> println
+            println("Part 1:");
+            lines |> solvePart1 |> ToString.toString |> println;
+            println("Part 2:");
+            lines |> solvePart2 |> ToString.toString |> println
         }
         case Err(e) =>  System.StdErr.println(ToString.toString(e))
     }
