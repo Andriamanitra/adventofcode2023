@@ -65,12 +65,10 @@ def solvePart2(lines: List[String]): Int32 = region rc {
     let cardCounts = Array.init(rc, constant(1), List.length(cards));
 
     cards |> List.forEachWithIndex((i, card) -> {
-        Iterator.range(rc, i + 1, i + 1 + List.length(winningNums(card)))
-        |> Iterator.forEach(j -> {
+        foreach (j <- List.range(i + 1, i + 1 + List.length(winningNums(card)))) {
             let newValue = Array.get(j, cardCounts) + Array.get(i, cardCounts);
             Array.put(newValue, j, cardCounts)
-        })
-
+        }
     });
 
     Array.sum(cardCounts)
