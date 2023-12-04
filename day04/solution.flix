@@ -8,10 +8,11 @@ def sample(): List[String] =
 
 @Test
 def test_solvePart1(): Bool =
-    Assert.eq(
-        13,
-        solvePart1(sample())
-    )
+    Assert.eq(13, solvePart1(sample()))
+
+@Test
+def test_solvePart2(): Bool =
+    Assert.eq(30, solvePart2(sample()))
 
 type alias Card = {
     name = String,
@@ -22,9 +23,9 @@ type alias Card = {
 def toCard(s: String): Card =
     def toInts(words: List[String]): List[Int32] =
         words
-        |> List.filterMap(word -> match Int32.parse(10, word) {
-            case Ok(n) => Some(n),
-            case Err(_) if word == "" => None,
+        |> List.filter(word -> not String.isWhiteSpace(word))
+        |> List.map(word -> match Int32.parse(10, word) {
+            case Ok(n) => n,
             case Err(_) => bug!("invalid number '${word}' on line '${s}'")
         });
     match (String.indexOf({ substr = ": " }, s)) {
@@ -55,17 +56,33 @@ def winningNums(card: Card): List[Int32] =
 
 def solvePart1(lines: List[String]): Int32 =
     lines
-    |> List.map(toCard)
-    |> List.map(winningNums)
-    |> List.map(List.length)
+    |> List.map(toCard >> winningNums >> List.length)
     |> List.map(numWinning -> Int32.leftShift(1, numWinning - 1))
     |> List.sum
+
+def solvePart2(lines: List[String]): Int32 = region rc {
+    let cards = List.map(toCard, lines);
+    let cardCounts = Array.init(rc, constant(1), List.length(cards));
+
+    cards |> List.forEachWithIndex((i, card) -> {
+        Iterator.range(rc, i + 1, i + 1 + List.length(winningNums(card)))
+        |> Iterator.forEach(j -> {
+            let newValue = Array.get(j, cardCounts) + Array.get(i, cardCounts);
+            Array.put(newValue, j, cardCounts)
+        })
+
+    });
+
+    Array.sum(cardCounts)
+}
 
 def main(): Unit \ IO =
     match Files.readLines("input.txt") {
         case Ok(lines) => {
             println("Part 1:");
-            lines |> solvePart1 |> ToString.toString |> println
+            solvePart1(lines) |> ToString.toString |> println;
+            println("Part 2:");
+            solvePart2(lines) |> ToString.toString |> println
         }
         case Err(_) => System.StdErr.println("unable to read file")
     }
