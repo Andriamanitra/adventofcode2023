@@ -6,4 +6,8 @@ def count_wins(time, record)
 end
 
 puts "Part 1:", times.zip(dists).product { |t,d| count_wins(t, d) }
-puts "Part 2:", count_wins(times.join.to_u64, dists.join.to_u64)
+
+time = times.join.to_i64
+dist = dists.join.to_i64
+puts "Part 2:", count_wins(time, dist)
+puts "Part 2 (math):",  Math.isqrt(time * time - dist * 4)
