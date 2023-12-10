@@ -1,3 +1,4 @@
+use Monad.{>>=};
 use Direction.{Up, Down, Left, Right};
 
 def sample(): List[String] =
@@ -10,6 +11,35 @@ def sample(): List[String] =
 @Test
 def test_solvePart1(): Bool =
     Assert.eq(8, solvePart1(sample()))
+
+def test_solvePart2(): Bool =
+    let grid =
+        "FF7FSF7F7F7F7F7F---7" ::
+        "L|LJ||||||||||||F--J" ::
+        "FL-7LJLJ||||||LJL-77" ::
+        "F--JF--7||LJLJIF7FJ-" ::
+        "L---JF-JLJIIIIFJLJJ7" ::
+        "|F|F-JF---7IIIL7L|7|" ::
+        "|FFJF7L7F-JF7IIL---7" ::
+        "7-L-JL7||F7|L7F-7F7|" ::
+        "L.L7LFJ|||||FJL7||LJ" ::
+        "L7JLJL-JLJLJL--JLJ.L" :: Nil;
+    Assert.eq(10, solvePart2(grid))
+
+def test_solvePart2_2(): Bool =
+    let grid =
+        "OF----7F7F7F7F-7OOOO" ::
+        "O|F--7||||||||FJOOOO" ::
+        "O||OFJ||||||||L7OOOO" ::
+        "FJL7L7LJLJ||LJIL-7OO" ::
+        "L--JOL7IIILJS7F-7L7O" ::
+        "OOOOF-JIIF7FJ|L7L7L7" ::
+        "OOOOL7IF7||L7|IL7L7|" ::
+        "OOOOO|FJLJ|FJ|F7|OLJ" ::
+        "OOOOFJL-7O||O||||OOO" ::
+        "OOOOL---JOLJOLJLJOOO" :: Nil;
+
+    Assert.eq(8, solvePart2(grid))
 
 enum Direction with ToString {
     case Up
@@ -56,7 +86,6 @@ def go(ch: Char, dir: Direction): Direction =
     }
 
 def walk(grid: List[String], startRow: Int32, startCol: Int32): List[(Int32, Int32)] = region rc {
-    use Monad.{>>=};
     let arr = List.toArray(rc, grid);
     let path = MutList.new(rc);
 
@@ -93,27 +122,63 @@ def walk(grid: List[String], startRow: Int32, startCol: Int32): List[(Int32, Int
     MutList.toList(path)
 }
 
-def walkFrom(startChar: Char, grid: List[String]): List[(Int32, Int32)] =
-    let startPos =
+def findStart(needle: Char, grid: List[String]): (Int32, Int32) =
+    let foundStarts =
         List.zipWithIndex(grid)
         |> List.filterMap(match (r, line) -> {
-            match String.findIndexOfLeft(Eq.eq(startChar), line) {
+            match String.findIndexOfLeft(Eq.eq(needle), line) {
                 case Some(c) => Some((r, c))
                 case None => None
             }
         });
-    match startPos {
-        case (r, c) :: Nil => walk(grid, r, c)
-        case Nil => bug!("no S in input")
-        case xs => {
-            let len = List.length(xs);
-            bug!("too many starting points (${len})")
-        }
+    match foundStarts {
+        case (r, c) :: Nil => (r, c)
+        case Nil => bug!("no '${needle}' in input")
+        case _ => bug!("too many starting points")
     }
 
 def solvePart1(grid: List[String]): Int32 =
-    let pathLength = List.length(walkFrom('S', grid));
+    let (startRow, startCol) = findStart('S', grid);
+    let pathLength = List.length(walk(grid, startRow, startCol));
     pathLength / 2
+
+def solvePart2(grid: List[String]): Int32 =
+    let isOdd = Int32.bitwiseAnd(1) >> Eq.eq(1);
+    let (startRow, startCol) = findStart('S', grid);
+    let path = walk(grid, startRow, startCol) |> List.toSet;
+
+    def countInside(r: Int32, row: String): Int32 = region rc {
+        let nLeft = ref 0 @ rc;
+        String.toList(row)
+        |> List.zipWithIndex
+        |> List.count(match (c, ch) -> {
+            if ((r, c) `Set.memberOf` path) {
+                nLeft := (deref nLeft) + match ch {
+                    case '|' => 1
+                    case 'L' => 1
+                    case 'J' => 1
+                    case 'S' => {
+                        let rowAboveS = List.head(List.drop(startRow - 1, grid));
+                        let charAboveS = rowAboveS >>= String.nth(startCol);
+                        match charAboveS {
+                            case Some('|') => 1
+                            case Some('7') => 1
+                            case Some('F') => 1
+                            case _ => 0
+                        }
+                    }
+                    case _ => 0
+                };
+                false
+            } else {
+                isOdd(deref nLeft)
+            }
+        })
+    };
+
+    grid
+    |> List.zipWithIndex
+    |> List.sumWith(match (i, row) -> countInside(i, row))
 
 def main(): Result[String, Unit] \ IO =
     use MayFail.withErrorMsg;
@@ -122,5 +187,7 @@ def main(): Result[String, Unit] \ IO =
         lines <- Files.readLines(fname) `withErrorMsg` "Unable to read ${fname}"
     ) yield {
         println("Part 1:");
-        lines |> solvePart1 |> println
+        lines |> solvePart1 |> println;
+        println("Part 2:");
+        lines |> solvePart2 |> println
     }
