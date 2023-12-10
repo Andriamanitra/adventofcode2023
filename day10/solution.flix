@@ -12,6 +12,7 @@ def sample(): List[String] =
 def test_solvePart1(): Bool =
     Assert.eq(8, solvePart1(sample()))
 
+@Test
 def test_solvePart2(): Bool =
     let grid =
         "FF7FSF7F7F7F7F7F---7" ::
@@ -26,6 +27,7 @@ def test_solvePart2(): Bool =
         "L7JLJL-JLJLJL--JLJ.L" :: Nil;
     Assert.eq(10, solvePart2(grid))
 
+@Test
 def test_solvePart2_2(): Bool =
     let grid =
         "OF----7F7F7F7F-7OOOO" ::
@@ -147,35 +149,40 @@ def solvePart2(grid: List[String]): Int32 =
     let (startRow, startCol) = findStart('S', grid);
     let path = walk(grid, startRow, startCol) |> List.toSet;
 
-    def countInside(r: Int32, row: String): Int32 = region rc {
-        let nLeft = ref 0 @ rc;
-        String.toList(row)
-        |> List.zipWithIndex
-        |> List.count(match (c, ch) -> {
-            if ((r, c) `Set.memberOf` path) {
-                nLeft := (deref nLeft) + match ch {
-                    case '|' => 1
-                    case 'L' => 1
-                    case 'J' => 1
-                    case 'S' => {
-                        let rowAboveS = List.head(List.drop(startRow - 1, grid));
-                        let charAboveS = rowAboveS >>= String.nth(startCol);
-                        match charAboveS {
-                            case Some('|') => 1
-                            case Some('7') => 1
-                            case Some('F') => 1
-                            case _ => 0
-                        }
-                    }
-                    case _ => 0
-                };
-                false
-            } else {
-                isOdd(deref nLeft)
-            }
-        })
+    let rowAboveS = List.head(List.drop(startRow - 1, grid));
+    let charAboveS = rowAboveS >>= String.nth(startCol);
+
+    def connectsUp(ch: Char): Bool = {
+        match ch {
+            case '|' => true
+            case 'L' => true
+            case 'J' => true
+            case 'S' =>
+                match charAboveS {
+                    case Some('|') => true
+                    case Some('7') => true
+                    case Some('F') => true
+                    case _ => false
+                }
+            case _ => false
+        }
     };
 
+    def countInside(rowIdx: Int32, row: String): Int32 = {
+        String.toList(row)
+        |> List.foldLeft2(
+            (acc, chIdx, ch) -> {
+                let (nLeft, total) = acc;
+                if ((rowIdx, chIdx) `Set.memberOf` path)
+                    ((if (connectsUp(ch)) nLeft+1 else nLeft), total)
+                else
+                    (nLeft, (if (isOdd(nLeft)) total+1 else total))
+            },
+            (0, 0),
+            List.range(0, String.length(row))
+        )
+        |> snd
+    };
     grid
     |> List.zipWithIndex
     |> List.sumWith(match (i, row) -> countInside(i, row))
