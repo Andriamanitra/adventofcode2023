@@ -43,13 +43,9 @@ instance MayFail[Option] {
 
 type alias Beam = (Direction, Int32, Int32)
 
-def solvePart1(lines: List[String]): Int32 = region rc {
+def solveGrid(rc: Region[r], grid: Array[Array[Char, r], r], initialBeam: Beam): Int32 \ r = {
     use Direction.{Up,Down,Left,Right};
     use Monad.{>>=};
-    let grid =
-        lines
-        |> List.map(String.toArray(rc))
-        |> List.toArray(rc);
     let visited = MutSet.new(rc);
 
     def moveBeam(beam: Beam): List[Beam] = {
@@ -100,8 +96,6 @@ def solvePart1(lines: List[String]): Int32 = region rc {
         }
     };
 
-    let initialBeam = (Right, 0, 0);
-
     def recur(beams: List[Beam]): Unit = {
         match beams {
             case Nil => ()
@@ -117,11 +111,47 @@ def solvePart1(lines: List[String]): Int32 = region rc {
     MutSet.size(visited)
 }
 
+def solvePart1(lines: List[String]): Int32 = region rc {
+    lines
+    |> List.map(String.toArray(rc))
+    |> List.toArray(rc)
+    |> grid -> solveGrid(rc, grid, (Direction.Right, 0, 0))
+}
+
+def solvePart2(lines: List[String]): Int32 = region rc {
+    let grid =
+        lines
+        |> List.map(String.toArray(rc))
+        |> List.toArray(rc);
+    let width = match Array.head(grid) {
+        case None => bug!("empty grid")
+        case Some(firstRow) => Array.length(firstRow)
+    };
+    let height = Array.length(grid);
+    let topBeams =
+        List.range(0, width)
+        |> List.map(c -> (Direction.Down, c, 0));
+    let leftBeams =
+        List.range(0, height)
+        |> List.map(r -> (Direction.Right, 0, r));
+    let rightBeams =
+        List.range(0, height)
+        |> List.map(r -> (Direction.Left, width-1, r));
+    let bottomBeams =
+        List.range(0, width)
+        |> List.map(c -> (Direction.Up, c, height-1));
+    (topBeams ::: leftBeams ::: rightBeams ::: bottomBeams)
+    |> List.map(beam -> solveGrid(rc, grid, beam))
+    |> List.foldLeft((a, b) -> Int32.max(a, b), 0)
+}
+
 def main(): Result[String, Unit] \ IO =
     use MayFail.withErrorMsg;
     let fname = "input.txt";
     forM (lines <- Files.readLines(fname) `withErrorMsg` "Unable to read '${fname}'")
     yield {
         println("Part 1:");
-        lines |> solvePart1 |> println
+        lines |> solvePart1 |> println;
+        println("Part 2:");
+        lines |> solvePart2 |> println
     }
